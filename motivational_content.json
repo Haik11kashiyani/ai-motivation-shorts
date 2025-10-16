@@ -1,0 +1,204 @@
+{
+  "quotes": [
+    {
+      "id": 1,
+      "text": "The only way to do great work is to love what you do. If you haven't found it yet, keep looking. Don't settle.",
+      "author": "Steve Jobs",
+      "category": "passion",
+      "character": "entrepreneur",
+      "tags": ["motivation", "passion", "work", "success"]
+    },
+    {
+      "id": 2,
+      "text": "Success is not final, failure is not fatal. It is the courage to continue that counts.",
+      "author": "Winston Churchill",
+      "category": "resilience",
+      "character": "warrior",
+      "tags": ["motivation", "resilience", "success", "courage"]
+    },
+    {
+      "id": 3,
+      "text": "Don't watch the clock. Do what it does. Keep going.",
+      "author": "Sam Levenson",
+      "category": "persistence",
+      "character": "runner",
+      "tags": ["motivation", "time", "persistence", "action"]
+    },
+    {
+      "id": 4,
+      "text": "The future belongs to those who believe in the beauty of their dreams.",
+      "author": "Eleanor Roosevelt",
+      "category": "dreams",
+      "character": "thinker",
+      "tags": ["motivation", "dreams", "future", "belief"]
+    },
+    {
+      "id": 5,
+      "text": "It does not matter how slowly you go as long as you do not stop.",
+      "author": "Confucius",
+      "category": "persistence",
+      "character": "runner",
+      "tags": ["motivation", "persistence", "progress", "patience"]
+    },
+    {
+      "id": 6,
+      "text": "Everything you've ever wanted is on the other side of fear.",
+      "author": "George Addair",
+      "category": "courage",
+      "character": "warrior",
+      "tags": ["motivation", "fear", "courage", "growth"]
+    },
+    {
+      "id": 7,
+      "text": "Believe you can and you're halfway there.",
+      "author": "Theodore Roosevelt",
+      "category": "belief",
+      "character": "motivational_speaker",
+      "tags": ["motivation", "belief", "confidence", "success"]
+    },
+    {
+      "id": 8,
+      "text": "The only impossible journey is the one you never begin.",
+      "author": "Tony Robbins",
+      "category": "action",
+      "character": "motivational_speaker",
+      "tags": ["motivation", "action", "journey", "beginning"]
+    },
+    {
+      "id": 9,
+      "text": "Your time is limited, don't waste it living someone else's life.",
+      "author": "Steve Jobs",
+      "category": "authenticity",
+      "character": "entrepreneur",
+      "tags": ["motivation", "time", "authenticity", "life"]
+    },
+    {
+      "id": 10,
+      "text": "The way to get started is to quit talking and begin doing.",
+      "author": "Walt Disney",
+      "category": "action",
+      "character": "entrepreneur",
+      "tags": ["motivation", "action", "productivity", "success"]
+    },
+    {
+      "id": 11,
+      "text": "Don't let yesterday take up too much of today.",
+      "author": "Will Rogers",
+      "category": "present",
+      "character": "thinker",
+      "tags": ["motivation", "present", "mindset", "focus"]
+    },
+    {
+      "id": 12,
+      "text": "You learn more from failure than from success. Don't let it stop you. Failure builds character.",
+      "author": "Unknown",
+      "category": "failure",
+      "character": "warrior",
+      "tags": ["motivation", "failure", "learning", "growth"]
+    },
+    {
+      "id": 13,
+      "text": "It's not whether you get knocked down, it's whether you get up.",
+      "author": "Vince Lombardi",
+      "category": "resilience",
+      "character": "warrior",
+      "tags": ["motivation", "resilience", "strength", "success"]
+    },
+    {
+      "id": 14,
+      "text": "If you are working on something that you really care about, you don't have to be pushed. The vision pulls you.",
+      "author": "Steve Jobs",
+      "category": "passion",
+      "character": "entrepreneur",
+      "tags": ["motivation", "passion", "vision", "dedication"]
+    },
+    {
+      "id": 15,
+      "text": "Failure is the condiment that gives success its flavor.",
+      "author": "Truman Capote",
+      "category": "failure",
+      "character": "thinker",
+      "tags": ["motivation", "failure", "success", "perspective"]
+    },
+    {
+      "id": 16,
+      "text": "The secret of getting ahead is getting started.",
+      "author": "Mark Twain",
+      "category": "action",
+      "character": "runner",
+      "tags": ["motivation", "action", "start", "progress"]
+    },
+    {
+      "id": 17,
+      "text": "I've missed more than 9,000 shots in my career. I've lost almost 300 games. And that is why I succeed.",
+      "author": "Michael Jordan",
+      "category": "failure",
+      "character": "warrior",
+      "tags": ["motivation", "failure", "success", "persistence"]
+    },
+    {
+      "id": 18,
+      "text": "Don't be afraid to give up the good to go for the great.",
+      "author": "John D. Rockefeller",
+      "category": "ambition",
+      "character": "entrepreneur",
+      "tags": ["motivation", "ambition", "excellence", "courage"]
+    },
+    {
+      "id": 19,
+      "text": "I attribute my success to this: I never gave or took any excuse.",
+      "author": "Florence Nightingale",
+      "category": "responsibility",
+      "character": "motivational_speaker",
+      "tags": ["motivation", "responsibility", "success", "discipline"]
+    },
+    {
+      "id": 20,
+      "text": "The most difficult thing is the decision to act, the rest is merely tenacity.",
+      "author": "Amelia Earhart",
+      "category": "action",
+      "character": "runner",
+      "tags": ["motivation", "action", "decision", "tenacity"]
+    },
+    {
+      "id": 21,
+      "text": "You miss 100 percent of the shots you don't take.",
+      "author": "Wayne Gretzky",
+      "category": "action",
+      "character": "warrior",
+      "tags": ["motivation", "action", "risk", "opportunity"]
+    },
+    {
+      "id": 22,
+      "text": "Whether you think you can or you think you can't, you're right.",
+      "author": "Henry Ford",
+      "category": "mindset",
+      "character": "thinker",
+      "tags": ["motivation", "mindset", "belief", "power"]
+    },
+    {
+      "id": 23,
+      "text": "The only person you are destined to become is the person you decide to be.",
+      "author": "Ralph Waldo Emerson",
+      "category": "destiny",
+      "character": "thinker",
+      "tags": ["motivation", "destiny", "choice", "self"]
+    },
+    {
+      "id": 24,
+      "text": "Go confidently in the direction of your dreams. Live the life you have imagined.",
+      "author": "Henry David Thoreau",
+      "category": "dreams",
+      "character": "motivational_speaker",
+      "tags": ["motivation", "dreams", "confidence", "life"]
+    },
+    {
+      "id": 25,
+      "text": "Everything has beauty, but not everyone can see it.",
+      "author": "Confucius",
+      "category": "perspective",
+      "character": "thinker",
+      "tags": ["motivation", "perspective", "beauty", "wisdom"]
+    }
+  ]
+}
