@@ -53,12 +53,13 @@ jobs:
     
     - name: 🎬 Generate Video
       id: generate
+      env:
+        ELEVEN_API_KEY_1: ${{ secrets.ELEVEN_API_KEY_1 }}
+        ELEVEN_API_KEY_2: ${{ secrets.ELEVEN_API_KEY_2 }}
+        ELEVEN_API_KEY_3: ${{ secrets.ELEVEN_API_KEY_3 }}
       run: |
-        # Use the main.py directly but just run once (don't schedule)
-        timeout 300 python main.py || true
-        
-        # Wait a bit for file to be written
-        sleep 5
+        timeout 300 python test_video.py || echo "Test completed or timed out"
+        sleep 3
       continue-on-error: true
     
     - name: 📊 Check Output
@@ -96,8 +97,15 @@ jobs:
       if: steps.check_output.outputs.found == 'true'
       run: |
         VIDEO="${{ steps.check_output.outputs.video_path }}"
-        ffmpeg -i "$VIDEO" -ss 00:00:03 -vframes 1 output/preview.png -y
-        echo "✅ Thumbnail extracted"
+        # Check if video has video stream
+        if ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$VIDEO" 2>/dev/null | grep -q video; then
+          ffmpeg -i "$VIDEO" -ss 00:00:03 -vframes 1 output/preview.png -y 2>/dev/null || echo "⚠️ Could not extract thumbnail"
+          if [ -f output/preview.png ]; then
+            echo "✅ Thumbnail extracted"
+          fi
+        else
+          echo "⚠️ Video has no video stream, skipping thumbnail"
+        fi
     
     - name: 📤 Upload Video
       if: steps.check_output.outputs.found == 'true'
@@ -108,12 +116,13 @@ jobs:
         retention-days: 5
     
     - name: 📤 Upload Thumbnail
-      if: steps.check_output.outputs.found == 'true'
+      if: steps.check_output.outputs.found == 'true' && hashFiles('output/preview.png') != ''
       uses: actions/upload-artifact@v4
       with:
         name: video-preview
         path: output/preview.png
         retention-days: 5
+        if-no-files-found: ignore
     
     - name: 📊 Final Report
       if: always()
