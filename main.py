@@ -26,9 +26,9 @@ class ViralConfig:
     # Video specs (optimized for virality)
     WIDTH = 1080
     HEIGHT = 1920
-    FPS = 60  # Smoother = more premium feel
-    DURATION_MIN = 25  # Longer engagement
-    DURATION_MAX = 35
+    FPS = 30  # Changed to 30 for faster rendering (still smooth)
+    DURATION_MIN = 20  # Slightly shorter for faster processing
+    DURATION_MAX = 30
     
     # ElevenLabs API for PREMIUM voice
     ELEVEN_API_KEYS = [
