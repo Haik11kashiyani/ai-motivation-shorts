@@ -48,38 +48,8 @@ jobs:
       run: |
         echo "Starting video generation..."
         
-        # Create simple test script
-        cat > run_test.py << 'ENDSCRIPT'
-        import os
-        import sys
-        
-        # Ensure output directory exists
-        os.makedirs('output', exist_ok=True)
-        
-        print("="*70)
-        print("GENERATING TEST VIDEO")
-        print("="*70)
-        
-        try:
-            # Check if simple_test.py exists
-            if os.path.exists('simple_test.py'):
-                print("Using simple_test.py...")
-                exec(open('simple_test.py').read())
-            else:
-                print("Using main.py...")
-                # Import and run single video generation
-                from main import ShortsAutomation
-                bot = ShortsAutomation()
-                bot.generate_and_post_short()
-        except Exception as e:
-            print(f"Error: {e}")
-            import traceback
-            traceback.print_exc()
-            sys.exit(1)
-        ENDSCRIPT
-        
-        # Run with timeout
-        timeout 600 python run_test.py || echo "Generation completed or timed out"
+        # Simply run main.py directly (it has __main__ section)
+        timeout 600 python main.py || echo "Generation completed or timed out"
         
         # Wait for file to be fully written
         sleep 5
