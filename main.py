@@ -1,6 +1,11 @@
 """
-🔥 VIRAL AI MOTIVATION SHORTS GENERATOR - TEST VERSION 🔥
-This version generates ONE test video without scheduling
+🔥 UPGRADED VIRAL AI MOTIVATION SHORTS 🔥
+- Realistic animated characters with lip-sync
+- Deep motivational male voice (ElevenLabs)
+- Professional text animations
+- Background gameplay/video support
+- AI photo animation support
+- Minimum 20 seconds duration
 """
 
 import os
@@ -9,10 +14,38 @@ import random
 from datetime import datetime
 from pathlib import Path
 from moviepy.editor import *
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import numpy as np
-from gtts import gTTS
+import requests
 import math
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+class Config:
+    # ElevenLabs API (Free tier - 10,000 chars/month)
+    ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY', '')  # Add your key
+    ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Deep male voice (Rachel)
+    # You can use: "pNInz6obpgDQGcFmaJgB" for Adam (deep male)
+    
+    # Video settings
+    WIDTH = 1080
+    HEIGHT = 1920
+    FPS = 30
+    MIN_DURATION = 20  # Minimum 20 seconds
+    
+    # Text animation style
+    TEXT_STYLE = "professional"  # professional, modern, minimal
+    
+    # Background options
+    USE_GAMEPLAY_BG = True  # Set to True to use gameplay/video background
+    GAMEPLAY_DIR = "backgrounds"  # Folder with background videos
+    
+    # AI Character options
+    USE_AI_PHOTOS = True  # Use AI-generated character photos
+    AI_PHOTOS_DIR = "ai_characters"  # Folder with AI character images
+
 
 # ============================================================================
 # CONTENT MANAGER
@@ -25,330 +58,525 @@ class ContentManager:
         self.used_ids = set()
     
     def load_content(self):
-        """Load motivational content from JSON"""
         with open(self.json_file, 'r') as f:
             return json.load(f)
     
     def get_next_content(self):
-        """Get next unused motivational content"""
         available = [q for q in self.content['quotes'] if q['id'] not in self.used_ids]
-        
         if not available:
             available = self.content['quotes']
-        
-        selected = random.choice(available)
-        return selected
+        return random.choice(available)
 
 
 # ============================================================================
-# ANIMATED CHARACTER
+# VOICE GENERATOR - Deep Male Voice (ElevenLabs)
 # ============================================================================
 
-class AnimatedCharacter:
-    """Creates animated 2D/3D characters"""
-    
+class VoiceGenerator:
     def __init__(self):
-        self.width = 1080
-        self.height = 1920
+        self.api_key = Config.ELEVENLABS_API_KEY
+        self.voice_id = Config.ELEVENLABS_VOICE_ID
         
-    def create_3d_character_frame(self, t, character_style="warrior"):
-        """Create 3D animated character frame"""
+    def generate_deep_voice(self, text, output_path='voiceover.mp3'):
+        """Generate deep male motivational voice using ElevenLabs"""
+        
+        if not self.api_key:
+            print("⚠️ ElevenLabs API key not set, using gTTS fallback")
+            return self.generate_gtts_voice(text, output_path)
+        
+        try:
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}"
+            
+            headers = {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": self.api_key
+            }
+            
+            data = {
+                "text": text,
+                "model_id": "eleven_monolingual_v1",
+                "voice_settings": {
+                    "stability": 0.75,  # More stable = more consistent
+                    "similarity_boost": 0.85,  # Higher = more like original voice
+                    "style": 0.5,  # Expressiveness
+                    "use_speaker_boost": True
+                }
+            }
+            
+            print("🎤 Generating deep motivational voice with ElevenLabs...")
+            response = requests.post(url, json=data, headers=headers)
+            
+            if response.status_code == 200:
+                with open(output_path, 'wb') as f:
+                    f.write(response.content)
+                print(f"✅ Deep voice generated: {output_path}")
+                return output_path
+            else:
+                print(f"⚠️ ElevenLabs error: {response.status_code}, using fallback")
+                return self.generate_gtts_voice(text, output_path)
+                
+        except Exception as e:
+            print(f"⚠️ ElevenLabs failed: {e}, using fallback")
+            return self.generate_gtts_voice(text, output_path)
+    
+    def generate_gtts_voice(self, text, output_path):
+        """Fallback: Generate voice using gTTS"""
+        from gtts import gTTS
+        
+        # Make it slower and deeper sounding
+        tts = gTTS(text=text, lang='en', slow=False, tld='co.uk')  # UK accent = deeper
+        tts.save(output_path)
+        
+        # Try to pitch shift down (make deeper)
+        try:
+            audio = AudioFileClip(output_path)
+            # Speed down slightly to make it sound deeper
+            slower_audio = audio.fx(vfx.speedx, 0.9)
+            slower_audio.write_audiofile(output_path.replace('.mp3', '_deep.mp3'))
+            audio.close()
+            slower_audio.close()
+            return output_path.replace('.mp3', '_deep.mp3')
+        except:
+            return output_path
+
+
+# ============================================================================
+# REALISTIC CHARACTER ANIMATOR - With Lip Sync
+# ============================================================================
+
+class RealisticCharacterAnimator:
+    def __init__(self):
+        self.width = Config.WIDTH
+        self.height = Config.HEIGHT
+        self.ai_photos_dir = Config.AI_PHOTOS_DIR
+        
+    def get_character_image(self):
+        """Get AI character image or create placeholder"""
+        if Config.USE_AI_PHOTOS and os.path.exists(self.ai_photos_dir):
+            photos = [f for f in os.listdir(self.ai_photos_dir) 
+                     if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+            if photos:
+                photo_path = os.path.join(self.ai_photos_dir, random.choice(photos))
+                return Image.open(photo_path).convert('RGBA')
+        
+        # Create placeholder realistic character
+        return self.create_realistic_character()
+    
+    def create_realistic_character(self):
+        """Create a realistic-looking character placeholder"""
         img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
-        char_x = self.width // 2
-        char_y = int(self.height * 0.65)
+        # Character position (centered, portrait style)
+        center_x = self.width // 2
+        center_y = self.height // 2
         
-        if character_style == "warrior":
-            return self._draw_warrior_character(draw, char_x, char_y, t)
-        elif character_style == "entrepreneur":
-            return self._draw_entrepreneur_character(draw, char_x, char_y, t)
-        elif character_style == "runner":
-            return self._draw_runner_character(draw, char_x, char_y, t)
-        elif character_style == "thinker":
-            return self._draw_thinker_character(draw, char_x, char_y, t)
-        else:
-            return self._draw_motivational_speaker(draw, char_x, char_y, t)
-    
-    def _draw_warrior_character(self, draw, x, y, t):
-        """Draw animated warrior character"""
-        scale = 1 + 0.05 * math.sin(t * 2)
+        # Create realistic human silhouette
+        # Head (oval)
+        head_width = 350
+        head_height = 450
+        draw.ellipse([
+            center_x - head_width//2, center_y - 400,
+            center_x + head_width//2, center_y - 400 + head_height
+        ], fill='#D4A574')  # Skin tone
         
-        # Legs
-        leg_width = int(60 * scale)
-        leg_height = int(200 * scale)
-        draw.rectangle([x - 80, y, x - 80 + leg_width, y + leg_height], fill='#8B4513')
-        draw.rectangle([x + 20, y, x + 20 + leg_width, y + leg_height], fill='#8B4513')
+        # Neck
+        neck_width = 150
+        draw.rectangle([
+            center_x - neck_width//2, center_y - 400 + head_height - 50,
+            center_x + neck_width//2, center_y - 400 + head_height + 80
+        ], fill='#C9945E')
         
-        # Body
-        body_width = int(180 * scale)
-        body_height = int(250 * scale)
-        draw.rectangle([x - 90, y - body_height, x + 90, y], fill='#CD853F')
+        # Shoulders and torso
+        shoulder_width = 500
+        torso_height = 600
+        draw.ellipse([
+            center_x - shoulder_width//2, center_y - 400 + head_height + 30,
+            center_x + shoulder_width//2, center_y - 400 + head_height + torso_height
+        ], fill='#2C3E50')  # Dark clothing
         
-        # Arms
-        arm_angle = math.sin(t * 3) * 20
-        draw.rectangle([x - 150, y - 180, x - 90, y - 100], fill='#CD853F')
-        punch_extend = int(50 + 30 * math.sin(t * 4))
-        draw.rectangle([x + 90, y - 180, x + 150 + punch_extend, y - 100], fill='#CD853F')
-        
-        # Head
-        head_size = int(100 * scale)
-        draw.ellipse([x - head_size//2, y - body_height - head_size, 
-                      x + head_size//2, y - body_height], fill='#DEB887')
+        # Hair
+        draw.ellipse([
+            center_x - head_width//2 - 20, center_y - 450,
+            center_x + head_width//2 + 20, center_y - 250
+        ], fill='#1A1A1A')  # Dark hair
         
         # Eyes
-        draw.ellipse([x - 30, y - body_height - 60, x - 10, y - body_height - 40], fill='#000000')
-        draw.ellipse([x + 10, y - body_height - 60, x + 30, y - body_height - 40], fill='#000000')
+        eye_y = center_y - 330
+        draw.ellipse([center_x - 100, eye_y, center_x - 50, eye_y + 40], fill='#FFFFFF')
+        draw.ellipse([center_x + 50, eye_y, center_x + 100, eye_y + 40], fill='#FFFFFF')
+        draw.ellipse([center_x - 85, eye_y + 10, center_x - 65, eye_y + 30], fill='#2C3E50')
+        draw.ellipse([center_x + 65, eye_y + 10, center_x + 85, eye_y + 30], fill='#2C3E50')
         
-        # Glow effect
-        glow_radius = int(250 + 50 * math.sin(t * 2))
-        for i in range(5):
-            alpha = int(50 - i * 10)
-            draw.ellipse([x - glow_radius + i*20, y - 200 - glow_radius//2 + i*20,
-                         x + glow_radius - i*20, y + 200 - glow_radius//2 - i*20],
-                        outline=(255, 215, 0, alpha), width=3)
+        # Nose
+        nose_y = center_y - 270
+        draw.polygon([
+            (center_x, nose_y),
+            (center_x - 20, nose_y + 60),
+            (center_x + 20, nose_y + 60)
+        ], fill='#BF8F5E')
         
-        return draw._image
+        # Mouth (closed - will animate)
+        mouth_y = center_y - 190
+        draw.ellipse([center_x - 60, mouth_y, center_x + 60, mouth_y + 25], 
+                    fill='#8B4513', outline='#6B3410', width=3)
+        
+        return img
     
-    def _draw_entrepreneur_character(self, draw, x, y, t):
-        """Draw entrepreneur character"""
-        # Simplified version for speed
-        draw.rectangle([x - 70, y, x - 20, y + 180], fill='#2C3E50')
-        draw.rectangle([x + 20, y, x + 70, y + 180], fill='#2C3E50')
-        draw.rectangle([x - 100, y - 240, x + 100, y], fill='#1C2833')
-        draw.ellipse([x - 50, y - 310, x + 50, y - 200], fill='#DEB887')
-        draw.ellipse([x - 25, y - 275, x - 10, y - 260], fill='#000000')
-        draw.ellipse([x + 10, y - 275, x + 25, y - 260], fill='#000000')
-        return draw._image
+    def animate_character_talking(self, t, audio_duration):
+        """Animate character with lip-sync"""
+        img = self.get_character_image()
+        
+        # Resize and position character
+        target_height = int(self.height * 0.85)
+        aspect_ratio = img.width / img.height
+        target_width = int(target_height * aspect_ratio)
+        img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        
+        # Create canvas
+        canvas = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
+        
+        # Center character
+        x_pos = (self.width - target_width) // 2
+        y_pos = (self.height - target_height) // 2 + 100  # Slightly lower
+        
+        # Add subtle breathing/movement
+        breath = int(5 * math.sin(t * 2))
+        
+        # Paste character
+        canvas.paste(img, (x_pos, y_pos + breath), img)
+        
+        # Add lip-sync overlay (mouth movements)
+        if t < audio_duration:
+            self.add_lip_sync(canvas, t, x_pos + target_width//2, y_pos + int(target_height * 0.6))
+        
+        # Add subtle glow/highlight
+        enhancer = ImageEnhance.Brightness(canvas)
+        glow_factor = 1.0 + 0.1 * math.sin(t * 3)
+        canvas = enhancer.enhance(glow_factor)
+        
+        return canvas
     
-    def _draw_runner_character(self, draw, x, y, t):
-        """Draw runner character"""
-        run_cycle = t * 6
-        leg_angle = math.sin(run_cycle) * 40
+    def add_lip_sync(self, canvas, t, mouth_x, mouth_y):
+        """Add animated mouth movements for speech"""
+        draw = ImageDraw.Draw(canvas)
         
-        # Legs
-        front_leg_x = int(x + leg_angle)
-        draw.ellipse([front_leg_x - 30, y + 100, front_leg_x + 30, y + 160], fill='#34495E')
-        draw.rectangle([front_leg_x - 25, y, front_leg_x + 25, y + 100], fill='#5D6D7E')
+        # Mouth animation cycle (opens and closes with speech rhythm)
+        mouth_open = abs(math.sin(t * 15))  # Fast mouth movement
         
-        # Body
-        lean = int(20 * math.cos(run_cycle))
-        draw.rectangle([x - 70 + lean, y - 200, x + 70 + lean, y], fill='#E74C3C')
-        
-        # Head
-        draw.ellipse([x - 45 + lean, y - 270, x + 45 + lean, y - 180], fill='#DEB887')
-        draw.ellipse([x - 25 + lean, y - 235, x - 10 + lean, y - 220], fill='#000000')
-        draw.ellipse([x + 10 + lean, y - 235, x + 25 + lean, y - 220], fill='#000000')
-        
-        return draw._image
-    
-    def _draw_thinker_character(self, draw, x, y, t):
-        """Draw thinker character"""
-        draw.rectangle([x - 60, y, x - 20, y + 160], fill='#5D6D7E')
-        draw.rectangle([x + 20, y, x + 60, y + 160], fill='#5D6D7E')
-        draw.rectangle([x - 90, y - 220, x + 90, y], fill='#8E44AD')
-        draw.ellipse([x - 55, y - 310, x + 55, y - 200], fill='#DEB887')
-        draw.ellipse([x - 25, y - 275, x - 10, y - 260], fill='#000000')
-        draw.ellipse([x + 10, y - 275, x + 25, y - 260], fill='#000000')
-        return draw._image
-    
-    def _draw_motivational_speaker(self, draw, x, y, t):
-        """Draw motivational speaker"""
-        energy = 1 + 0.08 * math.sin(t * 3)
-        
-        draw.rectangle([x - 80, y, x - 30, y + 200], fill='#34495E')
-        draw.rectangle([x + 30, y, x + 80, y + 200], fill='#34495E')
-        draw.rectangle([x - 100, y - 250, x + 100, y], fill='#E74C3C')
-        
-        arm_height = int(50 * math.sin(t * 2.5))
-        draw.rectangle([x - 140, y - 280 - arm_height, x - 100, y - 180], fill='#DEB887')
-        draw.rectangle([x + 100, y - 280 - arm_height, x + 140, y - 180], fill='#DEB887')
-        
-        draw.ellipse([x - 60, y - 340, x + 60, y - 220], fill='#DEB887')
-        draw.ellipse([x - 30, y - 300, x - 10, y - 280], fill='#FFFFFF')
-        draw.ellipse([x + 10, y - 300, x + 30, y - 280], fill='#FFFFFF')
-        draw.ellipse([x - 25, y - 295, x - 15, y - 285], fill='#000000')
-        draw.ellipse([x + 15, y - 295, x + 25, y - 285], fill='#000000')
-        
-        return draw._image
+        if mouth_open > 0.3:
+            # Mouth open
+            mouth_height = int(15 + 20 * mouth_open)
+            draw.ellipse([
+                mouth_x - 40, mouth_y - mouth_height//2,
+                mouth_x + 40, mouth_y + mouth_height//2
+            ], fill=(139, 69, 19, 200))  # Brown mouth
+        else:
+            # Mouth closed
+            draw.ellipse([
+                mouth_x - 40, mouth_y - 5,
+                mouth_x + 40, mouth_y + 5
+            ], fill=(139, 69, 19, 150))
 
 
 # ============================================================================
-# VIDEO GENERATOR
+# PROFESSIONAL TEXT ANIMATOR
 # ============================================================================
 
-class ViralVideoGenerator:
-    def __init__(self, width=1080, height=1920):
-        self.width = width
-        self.height = height
-        self.fps = 30
-        self.duration = 12  # Shorter for testing
-        self.character_animator = AnimatedCharacter()
+class ProfessionalTextAnimator:
+    def __init__(self):
+        self.width = Config.WIDTH
+        self.height = Config.HEIGHT
         
-        self.color_schemes = [
-            {'bg': '#0A0E27', 'text': '#FFD700', 'accent': '#FF6B35'},
-            {'bg': '#1A1A2E', 'text': '#00FFF0', 'accent': '#FF2E63'},
-            {'bg': '#000000', 'text': '#FFFFFF', 'accent': '#FF0055'},
-            {'bg': '#2C1654', 'text': '#FFA500', 'accent': '#00FF87'},
-        ]
+    def create_pro_text_overlay(self, text, t, duration):
+        """Create professional motivational-style text"""
+        canvas = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(canvas)
+        
+        # Word-by-word reveal
+        words = text.split()
+        words_per_second = len(words) / duration
+        visible_words = int(t * words_per_second) + 1
+        current_text = ' '.join(words[:visible_words])
+        
+        # Load bold font
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 85)
+            author_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 55)
+        except:
+            font = ImageFont.load_default()
+            author_font = font
+        
+        # Word wrap for multiple lines
+        lines = self.wrap_text(current_text, font, draw, self.width - 150)
+        
+        # Calculate total text height
+        line_height = 110
+        total_height = len(lines) * line_height
+        start_y = 150  # Top third
+        
+        # Draw each line with animations
+        for i, line in enumerate(lines):
+            y_pos = start_y + i * line_height
+            
+            # Fade in animation for each line
+            line_appear_time = (i / len(lines)) * duration * 0.3
+            alpha = min(255, int((t - line_appear_time) * 500))
+            alpha = max(0, alpha)
+            
+            if alpha > 0:
+                # Get text dimensions
+                bbox = draw.textbbox((0, 0), line, font=font)
+                text_width = bbox[2] - bbox[0]
+                x_pos = (self.width - text_width) // 2
+                
+                # Draw text with outline (for readability)
+                # Outline
+                for offset_x in [-4, -2, 0, 2, 4]:
+                    for offset_y in [-4, -2, 0, 2, 4]:
+                        if offset_x != 0 or offset_y != 0:
+                            draw.text((x_pos + offset_x, y_pos + offset_y), 
+                                    line, font=font, fill=(0, 0, 0, alpha))
+                
+                # Main text with gradient effect
+                colors = [(255, 215, 0, alpha), (255, 165, 0, alpha), (255, 215, 0, alpha)]
+                color = colors[i % len(colors)]
+                draw.text((x_pos, y_pos), line, font=font, fill=color)
+                
+                # Add subtle highlight on current word
+                if i == len(lines) - 1:
+                    glow_size = 10
+                    for g in range(glow_size):
+                        glow_alpha = int(alpha * 0.1 * (glow_size - g) / glow_size)
+                        draw.text((x_pos - g, y_pos), line, font=font, 
+                                fill=(255, 255, 255, glow_alpha))
+        
+        return canvas
     
-    def create_viral_video(self, content):
-        """Create viral-quality motivation short"""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_path = f"output/viral_short_{timestamp}.mp4"
-        os.makedirs('output', exist_ok=True)
+    def wrap_text(self, text, font, draw, max_width):
+        """Wrap text to fit within max_width"""
+        words = text.split()
+        lines = []
+        current_line = []
         
-        print(f"🎨 Creating viral video...")
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            width = bbox[2] - bbox[0]
+            
+            if width <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
         
-        colors = random.choice(self.color_schemes)
-        character_type = content.get('character', 'motivational_speaker')
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return lines
+
+
+# ============================================================================
+# BACKGROUND VIDEO MANAGER
+# ============================================================================
+
+class BackgroundManager:
+    def __init__(self):
+        self.gameplay_dir = Config.GAMEPLAY_DIR
+        
+    def get_background_video(self, duration):
+        """Get gameplay/background video"""
+        if not Config.USE_GAMEPLAY_BG or not os.path.exists(self.gameplay_dir):
+            return self.create_gradient_background(duration)
+        
+        # Get random gameplay video
+        videos = [f for f in os.listdir(self.gameplay_dir) 
+                 if f.lower().endswith(('.mp4', '.avi', '.mov'))]
+        
+        if not videos:
+            return self.create_gradient_background(duration)
+        
+        video_path = os.path.join(self.gameplay_dir, random.choice(videos))
         
         try:
-            # Generate voiceover
-            audio_path = self.generate_voiceover(content['text'])
-            audio_duration = 12
+            clip = VideoFileClip(video_path)
             
-            if os.path.exists(audio_path):
-                audio_clip = AudioFileClip(audio_path)
-                audio_duration = audio_clip.duration
-                audio_clip.close()
+            # Resize to fit (crop to 9:16)
+            clip = clip.resize(height=Config.HEIGHT)
             
-            # Create video
-            video_clip = self.create_character_video_clip(content, colors, character_type, audio_duration)
+            # Center crop to width
+            if clip.w > Config.WIDTH:
+                x_center = clip.w // 2
+                clip = clip.crop(x1=x_center - Config.WIDTH//2,
+                               x2=x_center + Config.WIDTH//2)
             
-            # Add audio
-            if os.path.exists(audio_path):
-                audio = AudioFileClip(audio_path)
-                video_clip = video_clip.set_audio(audio)
+            # Loop if needed
+            if clip.duration < duration:
+                clip = clip.loop(duration=duration)
+            else:
+                clip = clip.subclip(0, duration)
             
-            # Export
-            print(f"📹 Rendering video...")
-            video_clip.write_videofile(
-                output_path,
-                fps=self.fps,
-                codec='libx264',
-                audio_codec='aac',
-                preset='ultrafast',
-                threads=4,
-                logger=None
-            )
+            # Dim the background (so text is readable)
+            clip = clip.fx(vfx.colorx, 0.4)  # 40% brightness
+            clip = clip.fx(vfx.lum_contrast, contrast=0.1)  # Low contrast
             
-            video_clip.close()
-            print(f"✅ Video created: {output_path}")
-            return output_path
+            return clip
             
         except Exception as e:
-            print(f"❌ Error: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+            print(f"⚠️ Could not load background video: {e}")
+            return self.create_gradient_background(duration)
     
-    def create_character_video_clip(self, content, colors, character_type, duration):
-        """Create video clip with character"""
-        text = content['text']
-        
+    def create_gradient_background(self, duration):
+        """Create animated gradient background"""
         def make_frame(t):
-            # Background
-            img = Image.new('RGB', (self.width, self.height), colors['bg'])
+            img = Image.new('RGB', (Config.WIDTH, Config.HEIGHT), '#000000')
+            draw = ImageDraw.Draw(img)
             
-            # Add character
-            char_img = self.character_animator.create_3d_character_frame(t, character_type)
-            img.paste(char_img, (0, 0), char_img)
-            
-            # Add text
-            text_img = self.create_animated_text(text, t, duration, colors)
-            img.paste(text_img, (0, 0), text_img)
+            # Animated gradient
+            for y in range(Config.HEIGHT):
+                progress = y / Config.HEIGHT
+                # Color shift over time
+                r = int(20 + 40 * math.sin(t * 0.5 + progress * 2))
+                g = int(10 + 30 * math.sin(t * 0.3 + progress * 3))
+                b = int(40 + 60 * math.sin(t * 0.4 + progress))
+                
+                draw.line([(0, y), (Config.WIDTH, y)], fill=(r, g, b))
             
             return np.array(img)
         
         return VideoClip(make_frame, duration=duration)
-    
-    def create_animated_text(self, text, t, total_duration, colors):
-        """Create animated text"""
-        img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+
+
+# ============================================================================
+# UPGRADED VIDEO GENERATOR
+# ============================================================================
+
+class UpgradedVideoGenerator:
+    def __init__(self):
+        self.voice_gen = VoiceGenerator()
+        self.char_animator = RealisticCharacterAnimator()
+        self.text_animator = ProfessionalTextAnimator()
+        self.bg_manager = BackgroundManager()
         
-        # Word reveal
-        words = text.split()
-        words_per_second = len(words) / total_duration
-        current_word_index = min(int(t * words_per_second), len(words))
-        visible_text = ' '.join(words[:current_word_index + 1])
+    def create_viral_short(self, content):
+        """Create upgraded viral short"""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_path = f"output/viral_short_{timestamp}.mp4"
+        os.makedirs('output', exist_ok=True)
+        
+        print(f"\n🎬 Creating UPGRADED viral short...")
+        print(f"📝 Quote: {content['text'][:60]}...")
         
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 70)
-        except:
-            font = ImageFont.load_default()
-        
-        # Simple centered text
-        bbox = draw.textbbox((0, 0), visible_text, font=font)
-        text_width = bbox[2] - bbox[0]
-        x = (self.width - text_width) // 2
-        y = 150
-        
-        # Shadow
-        draw.text((x+4, y+4), visible_text, font=font, fill='#000000')
-        # Main text
-        draw.text((x, y), visible_text, font=font, fill=colors['text'])
-        
-        return img
-    
-    def hex_to_rgb(self, hex_color, alpha=255):
-        """Convert hex to RGBA"""
-        hex_color = hex_color.lstrip('#')
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4)) + (alpha,)
-    
-    def generate_voiceover(self, text):
-        """Generate voiceover"""
-        output_path = 'temp_voiceover.mp3'
-        try:
-            tts = gTTS(text=text, lang='en', slow=False)
-            tts.save(output_path)
+            # Generate deep voice
+            audio_path = self.voice_gen.generate_deep_voice(content['text'])
+            
+            # Get audio duration
+            audio_clip = AudioFileClip(audio_path)
+            audio_duration = max(audio_clip.duration, Config.MIN_DURATION)
+            
+            print(f"⏱️  Video duration: {audio_duration:.1f} seconds")
+            
+            # Create background
+            print("🎨 Creating background...")
+            background = self.bg_manager.get_background_video(audio_duration)
+            
+            # Create character overlay
+            print("👤 Animating character...")
+            def make_character_frame(t):
+                return np.array(self.char_animator.animate_character_talking(t, audio_duration))
+            
+            character_clip = VideoClip(make_character_frame, duration=audio_duration).set_pos(('center', 'center'))
+            
+            # Create text overlay
+            print("✍️  Creating text animations...")
+            def make_text_frame(t):
+                return np.array(self.text_animator.create_pro_text_overlay(content['text'], t, audio_duration))
+            
+            text_clip = VideoClip(make_text_frame, duration=audio_duration).set_pos(('center', 'top'))
+            
+            # Composite everything
+            print("🎞️  Compositing layers...")
+            final_video = CompositeVideoClip([
+                background,
+                character_clip.set_opacity(0.95),
+                text_clip
+            ], size=(Config.WIDTH, Config.HEIGHT))
+            
+            # Add audio
+            final_video = final_video.set_audio(audio_clip)
+            
+            # Export
+            print("📹 Rendering final video...")
+            final_video.write_videofile(
+                output_path,
+                fps=Config.FPS,
+                codec='libx264',
+                audio_codec='aac',
+                preset='medium',
+                threads=4,
+                logger=None
+            )
+            
+            # Cleanup
+            background.close()
+            character_clip.close()
+            text_clip.close()
+            final_video.close()
+            audio_clip.close()
+            
+            file_size = os.path.getsize(output_path) / (1024*1024)
+            print(f"\n✅ SUCCESS!")
+            print(f"📹 Video: {output_path}")
+            print(f"📏 Size: {file_size:.2f} MB")
+            print(f"⏱️  Duration: {audio_duration:.1f}s")
+            
             return output_path
+            
         except Exception as e:
-            print(f"⚠️ Voiceover failed: {e}")
+            print(f"\n❌ ERROR: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
 
 # ============================================================================
-# MAIN - SINGLE VIDEO TEST
+# MAIN - TEST SINGLE VIDEO
 # ============================================================================
 
 if __name__ == "__main__":
     print("""
-    ╔════════════════════════════════════════════════════════════════╗
-    ║         🔥 VIRAL SHORTS GENERATOR - TEST MODE 🔥              ║
-    ║              Generating ONE test video...                      ║
-    ╚════════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║      🔥 UPGRADED VIRAL SHORTS GENERATOR 🔥                    ║
+    ║                                                                ║
+    ║  ✨ Realistic animated characters                              ║
+    ║  🎤 Deep motivational voice (ElevenLabs)                      ║
+    ║  ✍️  Professional text animations                              ║
+    ║  🎮 Background video support                                   ║
+    ║  ⏱️  Minimum 20 seconds duration                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
     """)
     
     try:
-        # Create output directory
         os.makedirs('output', exist_ok=True)
         
-        # Initialize
         content_mgr = ContentManager()
-        video_gen = ViralVideoGenerator()
+        video_gen = UpgradedVideoGenerator()
         
-        # Get content
         content = content_mgr.get_next_content()
-        print(f"\n📝 Quote: {content['text'][:60]}...")
-        print(f"✍️  Author: {content['author']}")
-        print(f"🎭 Character: {content.get('character', 'speaker')}\n")
         
-        # Generate video
-        video_path = video_gen.create_viral_video(content)
+        video_path = video_gen.create_viral_short(content)
         
-        if video_path and os.path.exists(video_path):
-            file_size = os.path.getsize(video_path) / (1024*1024)
-            print(f"\n✅ SUCCESS!")
-            print(f"📹 Video: {video_path}")
-            print(f"📏 Size: {file_size:.2f} MB")
+        if video_path:
+            print("\n🎉 Video generation complete!")
         else:
-            print(f"\n❌ FAILED!")
+            print("\n❌ Video generation failed")
             exit(1)
             
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n❌ FATAL ERROR: {e}")
         import traceback
         traceback.print_exc()
         exit(1)
