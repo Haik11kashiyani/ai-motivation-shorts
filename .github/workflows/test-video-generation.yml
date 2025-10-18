@@ -34,22 +34,29 @@ jobs:
     
     - name: 📝 Create Test Script
       run: |
-        cat > test_video.py << 'EOF'
-        import os
-        os.makedirs('output', exist_ok=True)
-        
-        # Prevent the automation from starting
-        import sys
-        
-        # Import just what we need
-        exec(open('main.py').read().replace('automation.start_automation()', '# Automation disabled for testing'))
-        
-        # Now generate one video
-        print("Creating test automation instance...")
-        automation = ShortsAutomation()
-        print("Generating single video...")
-        automation.generate_and_post_short()
-        EOF
+        # Use simple_test.py if it exists, otherwise create inline
+        if [ ! -f "simple_test.py" ]; then
+          echo "Creating simple test script..."
+          cat > simple_test.py << 'SCRIPT_END'
+import os
+os.makedirs('output', exist_ok=True)
+
+# Disable automation in main.py
+with open('main.py', 'r') as f:
+    code = f.read()
+
+# Replace the automation start with single video generation
+code = code.replace('automation.start_automation()', '''
+# Generate single test video
+print("Generating ONE test video...")
+automation.generate_and_post_short()
+print("Test complete!")
+''')
+
+# Execute
+exec(code)
+SCRIPT_END
+        fi
     
     - name: 🎬 Generate Video
       id: generate
@@ -58,8 +65,22 @@ jobs:
         ELEVEN_API_KEY_2: ${{ secrets.ELEVEN_API_KEY_2 }}
         ELEVEN_API_KEY_3: ${{ secrets.ELEVEN_API_KEY_3 }}
       run: |
-        timeout 300 python test_video.py || echo "Test completed or timed out"
-        sleep 3
+        echo "🎬 Starting video generation..."
+        
+        # Try simple_test.py first, fallback to modified main.py
+        if [ -f "simple_test.py" ]; then
+          echo "Using simple_test.py..."
+          timeout 400 python simple_test.py || echo "Generation completed or timed out"
+        else
+          echo "Using test script..."
+          timeout 400 python simple_test.py || echo "Generation completed or timed out"
+        fi
+        
+        # Wait for file to be fully written
+        sleep 5
+        
+        echo "Checking output..."
+        ls -lah output/ || echo "No output directory"
       continue-on-error: true
     
     - name: 📊 Check Output
