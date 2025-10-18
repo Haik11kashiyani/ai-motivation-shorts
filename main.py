@@ -174,8 +174,8 @@ class CinematicVisuals:
             wave_combined = (wave1 + wave2 + 1) / 2  # Normalize to 0-1
             
             # Interpolate between background colors
-            r1, g1, b1 = self.hex_to_rgb(colors['bg1'])
-            r2, g2, b2 = self.hex_to_rgb(colors['bg2'])
+            r1, g1, b1, _ = self.hex_to_rgb(colors['bg1'])
+            r2, g2, b2, _ = self.hex_to_rgb(colors['bg2'])
             
             r = int(r1 + (r2 - r1) * (progress + wave_combined * 0.3))
             g = int(g1 + (g2 - g1) * (progress + wave_combined * 0.3))
