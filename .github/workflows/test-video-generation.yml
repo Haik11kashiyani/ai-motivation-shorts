@@ -1,8 +1,9 @@
-name: Quick Video Test
+name: Test Video Generation
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:
   push:
+    branches: [ main, master ]
     paths:
       - 'main.py'
       - 'motivational_content.json'
@@ -10,81 +11,86 @@ on:
 jobs:
   generate-test-video:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
-    - name: 📥 Checkout Code
+    - name: Checkout Code
       uses: actions/checkout@v4
     
-    - name: 🐍 Setup Python 3.9
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
         cache: 'pip'
     
-    - name: 🔧 Install FFmpeg & Fonts
+    - name: Install System Dependencies
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-dejavu-extra
+        echo "System dependencies installed"
     
-    - name: 📦 Install Python Packages
+    - name: Install Python Packages
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
+        echo "Python packages installed"
     
-    - name: 📝 Create Test Script
+    - name: Create Output Directory
       run: |
-        # Use simple_test.py if it exists, otherwise create inline
-        if [ ! -f "simple_test.py" ]; then
-          echo "Creating simple test script..."
-          cat > simple_test.py << 'SCRIPT_END'
-import os
-os.makedirs('output', exist_ok=True)
-
-# Disable automation in main.py
-with open('main.py', 'r') as f:
-    code = f.read()
-
-# Replace the automation start with single video generation
-code = code.replace('automation.start_automation()', '''
-# Generate single test video
-print("Generating ONE test video...")
-automation.generate_and_post_short()
-print("Test complete!")
-''')
-
-# Execute
-exec(code)
-SCRIPT_END
-        fi
+        mkdir -p output
+        echo "Output directory created"
     
-    - name: 🎬 Generate Video
-      id: generate
+    - name: Generate Test Video
       env:
         ELEVEN_API_KEY_1: ${{ secrets.ELEVEN_API_KEY_1 }}
         ELEVEN_API_KEY_2: ${{ secrets.ELEVEN_API_KEY_2 }}
         ELEVEN_API_KEY_3: ${{ secrets.ELEVEN_API_KEY_3 }}
       run: |
-        echo "🎬 Starting video generation..."
+        echo "Starting video generation..."
         
-        # Try simple_test.py first, fallback to modified main.py
-        if [ -f "simple_test.py" ]; then
-          echo "Using simple_test.py..."
-          timeout 400 python simple_test.py || echo "Generation completed or timed out"
-        else
-          echo "Using test script..."
-          timeout 400 python simple_test.py || echo "Generation completed or timed out"
-        fi
+        # Create simple test script
+        cat > run_test.py << 'ENDSCRIPT'
+        import os
+        import sys
+        
+        # Ensure output directory exists
+        os.makedirs('output', exist_ok=True)
+        
+        print("="*70)
+        print("GENERATING TEST VIDEO")
+        print("="*70)
+        
+        try:
+            # Check if simple_test.py exists
+            if os.path.exists('simple_test.py'):
+                print("Using simple_test.py...")
+                exec(open('simple_test.py').read())
+            else:
+                print("Using main.py...")
+                # Import and run single video generation
+                from main import ShortsAutomation
+                bot = ShortsAutomation()
+                bot.generate_and_post_short()
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        ENDSCRIPT
+        
+        # Run with timeout
+        timeout 600 python run_test.py || echo "Generation completed or timed out"
         
         # Wait for file to be fully written
         sleep 5
         
-        echo "Checking output..."
-        ls -lah output/ || echo "No output directory"
+        # Check output
+        echo "Checking output directory..."
+        ls -lah output/ || echo "No output directory found"
       continue-on-error: true
     
-    - name: 📊 Check Output
-      id: check_output
+    - name: Check Video Output
+      id: check_video
       run: |
         echo "Checking for generated video..."
         
@@ -93,93 +99,89 @@ SCRIPT_END
           echo "found=true" >> $GITHUB_OUTPUT
           echo "video_path=$VIDEO" >> $GITHUB_OUTPUT
           
-          echo "✅ Video found: $VIDEO"
+          echo "Video found: $VIDEO"
           
-          # Get video info
+          # Get file size
           SIZE=$(du -h "$VIDEO" | cut -f1)
           echo "size=$SIZE" >> $GITHUB_OUTPUT
+          echo "File size: $SIZE"
           
-          # Get duration and resolution
-          DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$VIDEO" 2>/dev/null | cut -d'.' -f1)
-          RESOLUTION=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$VIDEO" 2>/dev/null)
-          
-          echo "duration=${DURATION}s" >> $GITHUB_OUTPUT
-          echo "resolution=$RESOLUTION" >> $GITHUB_OUTPUT
-          
-          echo "📏 Size: $SIZE"
-          echo "⏱️  Duration: ${DURATION}s"
-          echo "📐 Resolution: $RESOLUTION"
-        else
-          echo "found=false" >> $GITHUB_OUTPUT
-          echo "❌ No video file found"
-        fi
-    
-    - name: 📸 Extract Thumbnail
-      if: steps.check_output.outputs.found == 'true'
-      run: |
-        VIDEO="${{ steps.check_output.outputs.video_path }}"
-        # Check if video has video stream
-        if ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$VIDEO" 2>/dev/null | grep -q video; then
-          ffmpeg -i "$VIDEO" -ss 00:00:03 -vframes 1 output/preview.png -y 2>/dev/null || echo "⚠️ Could not extract thumbnail"
-          if [ -f output/preview.png ]; then
-            echo "✅ Thumbnail extracted"
+          # Get video info if possible
+          if command -v ffprobe &> /dev/null; then
+            DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$VIDEO" 2>/dev/null | cut -d'.' -f1 || echo "unknown")
+            RESOLUTION=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$VIDEO" 2>/dev/null || echo "unknown")
+            
+            echo "duration=${DURATION}s" >> $GITHUB_OUTPUT
+            echo "resolution=$RESOLUTION" >> $GITHUB_OUTPUT
+            
+            echo "Duration: ${DURATION}s"
+            echo "Resolution: $RESOLUTION"
           fi
         else
-          echo "⚠️ Video has no video stream, skipping thumbnail"
+          echo "found=false" >> $GITHUB_OUTPUT
+          echo "No video file found"
         fi
     
-    - name: 📤 Upload Video
-      if: steps.check_output.outputs.found == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: viral-short-video
-        path: output/*.mp4
-        retention-days: 5
+    - name: Extract Thumbnail
+      if: steps.check_video.outputs.found == 'true'
+      run: |
+        VIDEO="${{ steps.check_video.outputs.video_path }}"
+        
+        # Check if video has video stream
+        if ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$VIDEO" 2>/dev/null | grep -q video; then
+          echo "Extracting thumbnail..."
+          ffmpeg -i "$VIDEO" -ss 00:00:03 -vframes 1 output/preview.png -y 2>/dev/null || true
+          
+          if [ -f output/preview.png ]; then
+            echo "Thumbnail extracted successfully"
+          else
+            echo "Could not extract thumbnail"
+          fi
+        else
+          echo "Video has no video stream, skipping thumbnail"
+        fi
+      continue-on-error: true
     
-    - name: 📤 Upload Thumbnail
-      if: steps.check_output.outputs.found == 'true' && hashFiles('output/preview.png') != ''
+    - name: Upload Video Artifact
+      if: steps.check_video.outputs.found == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: video-preview
+        name: generated-video
+        path: output/*.mp4
+        retention-days: 7
+    
+    - name: Upload Thumbnail Artifact
+      if: steps.check_video.outputs.found == 'true' && hashFiles('output/preview.png') != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: video-thumbnail
         path: output/preview.png
-        retention-days: 5
+        retention-days: 7
         if-no-files-found: ignore
     
-    - name: 📊 Final Report
+    - name: Final Report
       if: always()
       run: |
         echo ""
-        echo "╔════════════════════════════════════════════════════════╗"
-        echo "║           🎬 VIDEO GENERATION REPORT                   ║"
-        echo "╚════════════════════════════════════════════════════════╝"
+        echo "================================================================"
+        echo "                   VIDEO GENERATION REPORT"
+        echo "================================================================"
         echo ""
         
-        if [ "${{ steps.check_output.outputs.found }}" == "true" ]; then
-          echo "Status: ✅ SUCCESS"
+        if [ "${{ steps.check_video.outputs.found }}" == "true" ]; then
+          echo "Status: SUCCESS"
           echo ""
           echo "Video Details:"
-          echo "  📹 File: $(basename ${{ steps.check_output.outputs.video_path }})"
-          echo "  📏 Size: ${{ steps.check_output.outputs.size }}"
-          echo "  ⏱️  Duration: ${{ steps.check_output.outputs.duration }}"
-          echo "  📐 Resolution: ${{ steps.check_output.outputs.resolution }}"
+          echo "  File: $(basename ${{ steps.check_video.outputs.video_path }})"
+          echo "  Size: ${{ steps.check_video.outputs.size }}"
+          echo "  Duration: ${{ steps.check_video.outputs.duration }}"
+          echo "  Resolution: ${{ steps.check_video.outputs.resolution }}"
           echo ""
-          echo "📥 Download from 'Artifacts' section above ⬆️"
-          echo ""
-          echo "Next Steps:"
-          echo "  1. Download and watch the video"
-          echo "  2. Check character animations"
-          echo "  3. Verify text display"
-          echo "  4. Ready to add YouTube upload? Let me know!"
+          echo "Download your video from the 'Artifacts' section above!"
         else
-          echo "Status: ❌ FAILED"
+          echo "Status: FAILED"
           echo ""
-          echo "Video was not generated. Check logs above for errors."
-          echo ""
-          echo "Common issues:"
-          echo "  - Missing dependencies"
-          echo "  - FFmpeg not working"
-          echo "  - Font issues"
-          echo "  - Memory/timeout problems"
+          echo "Video was not generated. Check the logs above for errors."
         fi
         echo ""
-        echo "════════════════════════════════════════════════════════"
+        echo "================================================================"
