@@ -11,7 +11,7 @@ on:
 jobs:
   generate-test-video:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     
     steps:
     - name: Checkout Code
@@ -45,19 +45,33 @@ jobs:
         ELEVEN_API_KEY_1: ${{ secrets.ELEVEN_API_KEY_1 }}
         ELEVEN_API_KEY_2: ${{ secrets.ELEVEN_API_KEY_2 }}
         ELEVEN_API_KEY_3: ${{ secrets.ELEVEN_API_KEY_3 }}
+        PYTHONUNBUFFERED: "1"
       run: |
         echo "Starting video generation..."
+        echo "Python version:"
+        python --version
         
-        # Simply run main.py directly (it has __main__ section)
-        timeout 600 python main.py || echo "Generation completed or timed out"
+        echo ""
+        echo "Running main.py with verbose output..."
+        
+        # Run with Python unbuffered mode to see output immediately
+        python -u main.py 2>&1 | tee generation.log || echo "Script finished or timed out"
+        
+        echo ""
+        echo "Generation log:"
+        if [ -f generation.log ]; then
+          tail -50 generation.log
+        fi
         
         # Wait for file to be fully written
         sleep 5
         
         # Check output
+        echo ""
         echo "Checking output directory..."
         ls -lah output/ || echo "No output directory found"
       continue-on-error: true
+      timeout-minutes: 15
     
     - name: Check Video Output
       id: check_video
