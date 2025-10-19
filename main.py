@@ -6,7 +6,16 @@
 ✅ Tested and verified
 """
 
+import sys
 import os
+
+# Force unbuffered output
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
+
+print("SCRIPT STARTED!", flush=True)
+print("Importing libraries...", flush=True)
+
 import json
 import random
 from datetime import datetime
@@ -15,6 +24,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import numpy as np
 import requests
 import math
+
+print("Libraries imported successfully!", flush=True)
 
 print("="*70)
 print("🔥 ULTIMATE VIRAL SHORTS GENERATOR")
